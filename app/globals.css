@@ -2748,3 +2748,14 @@ video {
 .animated-search-compact .animated-search-border {
   max-height: 38px;
 }
+
+@keyframes rainbow {
+  0% { background-position: 0%; }
+  50% { background-position: 100%; }
+  100% { background-position: 200%; }
+}
+
+.animate-rainbow {
+  animation: rainbow 3s linear infinite;
+  background-size: 200%;
+}
