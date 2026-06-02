@@ -161,6 +161,10 @@ export function CreateNoticeModal({
 
       onSuccess()
       onClose()
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notices-updated'))
+      }
 
     } catch (err) {
       console.error('Create notice error:', err)

@@ -19,6 +19,8 @@ export function RecentNotices({ departmentId, departmentName, readOnly = false }
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
+
     async function fetchNotices() {
       const supabase = createClient()
       const { data } = await supabase
@@ -27,12 +29,37 @@ export function RecentNotices({ departmentId, departmentName, readOnly = false }
         .eq('department_id', departmentId)
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
-        .limit(3) // Adjusted limit for new UI stack
+        .limit(3)
 
-      setNotices(data || [])
-      setLoading(false)
+      if (isMounted) {
+        setNotices(data || [])
+        setLoading(false)
+      }
     }
+    
     fetchNotices()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`recent-notices-${departmentId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notices',
+        filter: `department_id=eq.${departmentId}`,
+      }, () => {
+        fetchNotices()
+      })
+      .subscribe()
+
+    const handleNoticesUpdated = () => fetchNotices()
+    window.addEventListener('notices-updated', handleNoticesUpdated)
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+      window.removeEventListener('notices-updated', handleNoticesUpdated)
+    }
   }, [departmentId])
 
   const formatRelativeTime = (dateStr: string): string => {

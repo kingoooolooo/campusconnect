@@ -234,6 +234,14 @@ CREATE POLICY "notices_update_admin"
     OR public.is_dept_admin_of(department_id)
   );
 
+-- Admins can delete notices
+CREATE POLICY "notices_delete_admin"
+  ON notices FOR DELETE TO authenticated
+  USING (
+    public.is_super_admin()
+    OR public.is_dept_admin_of(department_id)
+  );
+
 -- ============================================================
 -- NOTIFICATIONS
 -- ============================================================

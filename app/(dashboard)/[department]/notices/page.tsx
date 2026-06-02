@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import { NoticeCard, NoticeCardNotice } from '@/components/notices/NoticeCard'
@@ -13,6 +14,7 @@ interface NoticesPageProps {
 
 export default function NoticesPage({ params }: NoticesPageProps) {
   const { user, department, isSuperAdmin, isDeptAdmin } = useAuthStore()
+  const router = useRouter()
 
   const [departmentCode, setDepartmentCode] = useState<string>('')
   const [notices, setNotices] = useState<NoticeCardNotice[]>([])
@@ -133,13 +135,28 @@ export default function NoticesPage({ params }: NoticesPageProps) {
     if (!confirm('Delete this notice? This cannot be undone.')) return
 
     const supabase = createClient()
-    await supabase
+    const { error, count } = await supabase
       .from('notices')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('id', noticeId)
+
+    if (error) {
+      alert(`Error deleting notice: ${error.message}`)
+      return
+    }
+
+    if (count === 0) {
+      alert('Delete failed: no rows were deleted. This may be an RLS policy issue or the notice no longer exists.')
+      return
+    }
 
     setNotices(prev => prev.filter(n => n.id !== noticeId))
     setSelectedNotice(null)
+    router.refresh()
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notices-updated'))
+    }
   }
 
   const handleLoadMore = () => {
