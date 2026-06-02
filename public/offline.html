@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CampusConnect - Offline</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      color: #FFFFFF;
+      font-family: monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      text-align: center;
+      padding: 32px;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+    h1 { font-size: 20px; color: #607C8E; margin-bottom: 8px; }
+    p { font-size: 13px; color: #52525B; margin-bottom: 24px; }
+    button {
+      padding: 10px 24px;
+      background: #607C8E;
+      border: none;
+      color: white;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>You're Offline</h1>
+    <p>CampusConnect needs an internet connection. Please check your network and try again.</p>
+    <button onclick="window.location.reload()">RETRY</button>
+  </div>
+</body>
+</html>
