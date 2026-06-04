@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Semester is required' }, { status: 400 })
     }
 
-    const semester = typeof semesterRaw === 'string' ? parseInt(semesterRaw, 10) : semesterRaw
+    const semester = typeof semesterRaw === 'string' ? parseInt(semesterRaw, 10) : Number(semesterRaw)
     if (isNaN(semester) || semester < 1) {
       return NextResponse.json({ error: 'Invalid semester value' }, { status: 400 })
     }
