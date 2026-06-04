@@ -22,6 +22,7 @@ export function UploadModal({
   const [uploadSemester, setUploadSemester] = useState<number | ''>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState('')
   
   const fileRef = useRef<HTMLInputElement>(null)
@@ -63,23 +64,82 @@ export function UploadModal({
     if (!title.trim() || !uploadSemester || !selectedFile) return
 
     setUploading(true)
+    setUploadProgress(0)
     setError('')
 
     try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('title', title.trim())
-      formData.append('description', description.trim())
-      formData.append('semester', uploadSemester.toString())
-      // formData.append('tags', '') // Tags could be added later if needed
+      // 1. Call /api/upload/sign to get the signature
+      const signRes = await fetch('/api/upload/sign')
+      if (!signRes.ok) {
+        const data = await signRes.json()
+        setError(data.error || 'Failed to initialize upload.')
+        setUploading(false)
+        return
+      }
+      const { timestamp, signature, apiKey, cloudName } = await signRes.json()
 
-      const uploadRes = await fetch('/api/upload/notes', {
-        method: 'POST',
-        body: formData,
+      const fileName = selectedFile.name.replace(/\.[^.]+$/, '') // remove extension
+      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase() || 'unknown'
+
+      // 2. Upload the file DIRECTLY to Cloudinary using XMLHttpRequest
+      const cloudinaryFormData = new FormData()
+      cloudinaryFormData.append('file', selectedFile, fileName)
+      cloudinaryFormData.append('api_key', apiKey)
+      cloudinaryFormData.append('timestamp', String(timestamp))
+      cloudinaryFormData.append('signature', signature)
+      cloudinaryFormData.append('folder', 'campusconnect/notes')
+
+      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`)
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100))
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText))
+            } catch {
+              reject(new Error('Invalid response from upload server.'))
+            }
+          } else {
+            reject(new Error('Upload server returned status: ' + xhr.status))
+          }
+        }
+
+        xhr.onerror = () => reject(new Error('Direct upload failed.'))
+        xhr.send(cloudinaryFormData)
       })
 
-      if (!uploadRes.ok) {
-        const data = await uploadRes.json()
+      // 3. Send ONLY metadata as JSON to /api/upload/notes
+      console.log('Sending metadata:', {
+        title: title.trim(),
+        description: description.trim(),
+        semester: uploadSemester,
+        tags: '',
+        file_url: uploadResult.secure_url,
+        file_type: fileExtension,
+      })
+
+      const response = await fetch('/api/upload/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          semester: uploadSemester,
+          tags: '',
+          file_url: uploadResult.secure_url,
+          file_type: fileExtension,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
         setError(data.error || 'Upload failed. Try again.')
         setUploading(false)
         return
@@ -93,11 +153,12 @@ export function UploadModal({
       setDescription('')
       setUploadSemester('')
       setSelectedFile(null)
+      setUploadProgress(0)
       
       onClose()
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Upload error:', err)
-      setError('Something went wrong.')
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
       setUploading(false)
     }
   }
@@ -156,6 +217,7 @@ export function UploadModal({
       >
         {/* Close button */}
         <button
+          type="button"
           onClick={onClose}
           style={{
             position: 'absolute',
@@ -285,6 +347,7 @@ export function UploadModal({
                   {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                 </div>
                 <button
+                  type="button"
                   onClick={e => { e.stopPropagation(); setSelectedFile(null); if (fileRef.current) fileRef.current.value = '' }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
@@ -332,19 +395,36 @@ export function UploadModal({
 
         {/* Upload progress */}
         {uploading && (
-          <div style={{
-            fontFamily: "'Fragment Mono', monospace",
-            fontSize: '11px',
-            color: '#607C8E',
-            marginBottom: '16px',
-            textAlign: 'center',
-          }}>
-            Uploading... Please wait.
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{
+              fontFamily: "'Fragment Mono', monospace",
+              fontSize: '11px',
+              color: '#607C8E',
+              marginBottom: '6px',
+              textAlign: 'center',
+            }}>
+              Uploading... {uploadProgress}%
+            </div>
+            <div style={{
+              width: '100%',
+              height: '4px',
+              backgroundColor: '#1E1E1F',
+              borderRadius: '2px',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${uploadProgress}%`,
+                height: '100%',
+                backgroundColor: '#607C8E',
+                transition: 'width 0.1s ease',
+              }} />
+            </div>
           </div>
         )}
 
         {/* Submit button */}
         <button
+          type="button"
           onClick={handleUpload}
           disabled={!title.trim() || !uploadSemester || !selectedFile || uploading}
           className="auth-form-submit-btn"
