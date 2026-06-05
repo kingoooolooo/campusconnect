@@ -182,7 +182,7 @@ export function NotePreviewModal({ note, onClose, onDownload }: NotePreviewModal
         {isPdf && (
           <div style={{ textAlign: 'center', padding: '20px' }}>
             <iframe
-              src={`https://docs.google.com/gview?url=${encodeURIComponent(note.file_url)}&embedded=true`}
+              src={note.file_url + '#toolbar=0'}
               style={{ width: '100%', height: '70vh', border: 'none', background: '#fff' }}
               title="PDF Preview"
             />

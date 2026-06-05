@@ -68,49 +68,66 @@ export function UploadModal({
     setError('')
 
     try {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('title', title.trim())
-      formData.append('description', description.trim())
-      formData.append('semester', String(uploadSemester))
+      // Upload directly to Cloudinary from the browser
+      const cloudinaryFormData = new FormData()
+      cloudinaryFormData.append('file', selectedFile)
+      cloudinaryFormData.append('upload_preset', 'notesss')
 
-      const xhr = new XMLHttpRequest()
-      xhr.open('POST', '/api/upload/notes')
+      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', 'https://api.cloudinary.com/v1_1/dvif5lsdq/auto/upload')
 
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          setUploadProgress(Math.round((e.loaded / e.total) * 100))
-        }
-      }
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          // Success
-          onSuccess()
-          // Reset form
-          setTitle('')
-          setDescription('')
-          setUploadSemester('')
-          setSelectedFile(null)
-          setUploadProgress(0)
-          onClose()
-        } else {
-          try {
-            const errData = JSON.parse(xhr.responseText)
-            setError(errData.error || 'Upload failed')
-          } catch {
-            setError('Upload failed')
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100))
           }
-          setUploading(false)
         }
-      }
 
-      xhr.onerror = () => {
-        setError('Upload failed')
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText))
+            } catch {
+              reject(new Error('Invalid response from upload server.'))
+            }
+          } else {
+            console.error('Cloudinary error:', xhr.responseText)
+            reject(new Error('Upload failed with status: ' + xhr.status + ' - ' + xhr.responseText))
+          }
+        }
+
+        xhr.onerror = () => reject(new Error('Direct upload failed.'))
+        xhr.send(cloudinaryFormData)
+      })
+
+      // Send only metadata as JSON to our API
+      const metadataRes = await fetch('/api/upload/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          semester: String(uploadSemester),
+          file_url: uploadResult.secure_url,
+          file_type: selectedFile.name.split('.').pop()?.toLowerCase() || 'unknown',
+        }),
+      })
+
+      if (!metadataRes.ok) {
+        const data = await metadataRes.json()
+        setError(data.error || 'Upload failed.')
         setUploading(false)
+        return
       }
 
-      xhr.send(formData)
+      // Success
+      onSuccess()
+      setTitle('')
+      setDescription('')
+      setUploadSemester('')
+      setSelectedFile(null)
+      setUploadProgress(0)
+      onClose()
     } catch (err: unknown) {
       console.error('Upload error:', err)
       setError(err instanceof Error ? err.message : 'Something went wrong.')

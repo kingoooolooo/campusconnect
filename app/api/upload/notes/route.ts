@@ -1,35 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { v2 as cloudinary } from 'cloudinary'
-import streamifier from 'streamifier'
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
-
-function uploadToCloudinary(buffer: Buffer): Promise<{ secure_url: string; public_id: string }> {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'raw',
-        folder: 'campusconnect/notes',
-      },
-      (error, result) => {
-        if (error || !result) {
-          reject(error || new Error('Upload failed'))
-        } else {
-          resolve({
-            secure_url: result.secure_url,
-            public_id: result.public_id,
-          })
-        }
-      }
-    )
-    streamifier.createReadStream(buffer).pipe(uploadStream)
-  })
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,17 +29,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    const title = formData.get('title') as string
-    const description = (formData.get('description') as string) || ''
-    const semesterRaw = formData.get('semester')
-    const tagsInput = formData.get('tags')
+    const body = await request.json()
+    const { title, description = '', semester: semesterRaw, file_url, file_type } = body
 
-    if (!file) {
-      return NextResponse.json({ error: 'File is required' }, { status: 400 })
+    if (!file_url || typeof file_url !== 'string') {
+      return NextResponse.json({ error: 'File URL is required' }, { status: 400 })
     }
-    if (!title || !title.trim()) {
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
     if (!semesterRaw) {
@@ -98,22 +64,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let tags: string[] = []
-    if (tagsInput && typeof tagsInput === 'string') {
-      tags = tagsInput.split(',').map((t) => t.trim()).filter((t) => t.length > 0)
-    }
+    const fileType = (file_type as string || 'unknown').toLowerCase()
 
-    // Upload file to Cloudinary as 'raw' resource (public by default)
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'unknown'
-
-    console.log('[Upload] Uploading to Cloudinary with resource_type: raw...')
-    const uploadResult = await uploadToCloudinary(buffer)
-    console.log('[Upload] Cloudinary URL:', uploadResult.secure_url)
-    console.log('[Upload] Public ID:', uploadResult.public_id)
-
-    // Insert note record
     const { data: note, error: insertError } = await supabase
       .from('notes')
       .insert({
@@ -122,9 +74,9 @@ export async function POST(request: NextRequest) {
         title: title.trim(),
         description: description.trim(),
         semester,
-        tags,
-        file_url: uploadResult.secure_url,
-        file_type: fileExtension,
+        tags: [],
+        file_url: file_url,
+        file_type: fileType,
         status: 'pending',
       })
       .select()
