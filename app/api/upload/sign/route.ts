@@ -38,8 +38,13 @@ export async function GET() {
     }
 
     const timestamp = Math.round(new Date().getTime() / 1000)
+    const paramsToSign: Record<string, string | number> = {
+      timestamp,
+      folder: 'campusconnect/notes',
+      type: 'upload',
+    }
     const signature = cloudinary.utils.api_sign_request(
-      { timestamp, folder: 'campusconnect/notes' },
+      paramsToSign,
       process.env.CLOUDINARY_API_SECRET!
     )
 
@@ -48,6 +53,7 @@ export async function GET() {
       signature,
       apiKey: process.env.CLOUDINARY_API_KEY,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      type: 'upload',
     })
   } catch (error) {
     console.error('[Sign Upload] Unexpected error:', error)

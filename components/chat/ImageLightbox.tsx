@@ -1,7 +1,5 @@
 'use client'
 
-import Image from 'next/image'
-
 interface ImageLightboxProps {
   imageUrl: string
   onClose: () => void
@@ -9,25 +7,81 @@ interface ImageLightboxProps {
 
 export function ImageLightbox({ imageUrl, onClose }: ImageLightboxProps) {
   return (
-    <div className="chat-lightbox" onClick={onClose}>
-      <div style={{ position: 'relative', width: '90vw', height: '90vh', margin: 'auto' }}>
-        <Image src={imageUrl} alt="Enlarged view" fill style={{ objectFit: 'contain' }} onClick={e => e.stopPropagation()} />
-      </div>
-      <button 
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'rgba(0, 0, 0, 0.9)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+      }}
+    >
+      {/* Close button */}
+      <button
         onClick={onClose}
         style={{
           position: 'absolute',
           top: '20px',
           right: '20px',
-          background: 'none',
+          width: '44px',
+          height: '44px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(255, 255, 255, 0.15)',
           border: 'none',
-          color: '#FFF',
-          fontSize: '32px',
-          cursor: 'pointer'
+          borderRadius: '50%',
+          color: '#FFFFFF',
+          fontSize: '24px',
+          cursor: 'pointer',
+          zIndex: 10000,
         }}
       >
-        ×
+        X
       </button>
+
+      {/* Back button */}
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '10px 16px',
+          background: 'rgba(255, 255, 255, 0.15)',
+          border: 'none',
+          borderRadius: '8px',
+          color: '#FFFFFF',
+          fontFamily: "'Fragment Mono', monospace",
+          fontSize: '13px',
+          cursor: 'pointer',
+          zIndex: 10000,
+        }}
+      >
+        Back
+      </button>
+
+      {/* Full quality image */}
+      <img
+        src={imageUrl}
+        alt="Full size"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '80vw',
+          maxHeight: '75vh',
+          width: 'auto',
+          height: 'auto',
+          objectFit: 'contain',
+          borderRadius: '4px',
+        }}
+      />
     </div>
   )
 }

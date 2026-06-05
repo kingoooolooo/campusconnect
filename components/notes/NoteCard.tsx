@@ -174,10 +174,15 @@ export function NoteCard({
           )}
 
           {/* Download button */}
-          <button
+          <a
+            href={`/api/download/${note.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
             className="note-action-btn"
             onClick={(e) => { e.stopPropagation(); onDownload(note); }}
             title="Download note"
+            style={{ textDecoration: 'none' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round"
@@ -187,7 +192,7 @@ export function NoteCard({
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
             <span>{note.download_count}</span>
-          </button>
+          </a>
 
           {/* Ask Yufi button */}
           {!readOnly && (

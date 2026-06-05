@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Message } from '@/types/database'
 import { EmojiPicker } from './EmojiPicker'
 import Image from 'next/image'
+import { ImageLightbox } from './ImageLightbox'
 
 interface ChatBubbleMessage extends Message {
   profiles?: {
@@ -43,6 +44,7 @@ export function ChatBubble({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(message.content || '')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
   const profile = message.profiles
   const senderName = isOwnMessage
@@ -66,6 +68,14 @@ export function ChatBubble({
       onEdit?.(editContent.trim())
     }
     setIsEditing(false)
+  }
+
+  // Get high-quality Cloudinary image URL
+  const getHighQualityUrl = (url: string) => {
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+      return url.replace('/upload/', '/upload/q_100/')
+    }
+    return url
   }
 
   return (
@@ -380,22 +390,41 @@ export function ChatBubble({
               </div>
             </div>
           ) : (
-            <span style={{
-              fontFamily: "'Fragment Mono', monospace",
-              fontSize: '13px',
-              color: '#FFFFFF',
-              lineHeight: '1.5',
-              wordBreak: 'break-word',
-            }}>
-              {message.content}
-              {message.is_edited && (
-                <span style={{
-                  fontSize: '9px',
-                  color: '#52525B',
-                  marginLeft: '6px',
-                }}>(edited)</span>
+            <>
+              {/* Image message */}
+              {message.image_url && (
+                <div style={{ marginBottom: message.content ? '8px' : '0' }}>
+                  <img
+                    src={getHighQualityUrl(message.image_url)}
+                    alt="Shared image"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '300px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      objectFit: 'contain',
+                    }}
+                    onClick={() => setLightboxImage(getHighQualityUrl(message.image_url!))}
+                  />
+                </div>
               )}
-            </span>
+
+              {/* Text content (only if there's text) */}
+              {message.content && (
+                <span style={{
+                  fontFamily: "'Fragment Mono', monospace",
+                  fontSize: '13px',
+                  color: '#FFFFFF',
+                  lineHeight: '1.5',
+                  wordBreak: 'break-word',
+                }}>
+                  {message.content}
+                  {message.is_edited && (
+                    <span style={{ fontSize: '9px', color: '#52525B', marginLeft: '6px' }}>(edited)</span>
+                  )}
+                </span>
+              )}
+            </>
           )}
         </div>
 
@@ -430,6 +459,12 @@ export function ChatBubble({
           </div>
         )}
       </div>
+      {lightboxImage && (
+        <ImageLightbox
+          imageUrl={lightboxImage}
+          onClose={() => setLightboxImage(null)}
+        />
+      )}
     </div>
   )
 }

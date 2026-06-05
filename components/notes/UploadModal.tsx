@@ -68,94 +68,49 @@ export function UploadModal({
     setError('')
 
     try {
-      // 1. Call /api/upload/sign to get the signature
-      const signRes = await fetch('/api/upload/sign')
-      if (!signRes.ok) {
-        const data = await signRes.json()
-        setError(data.error || 'Failed to initialize upload.')
-        setUploading(false)
-        return
-      }
-      const { timestamp, signature, apiKey, cloudName } = await signRes.json()
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      formData.append('title', title.trim())
+      formData.append('description', description.trim())
+      formData.append('semester', String(uploadSemester))
 
-      const fileName = selectedFile.name.replace(/\.[^.]+$/, '') // remove extension
-      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase() || 'unknown'
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', '/api/upload/notes')
 
-      // 2. Upload the file DIRECTLY to Cloudinary using XMLHttpRequest
-      const cloudinaryFormData = new FormData()
-      cloudinaryFormData.append('file', selectedFile, fileName)
-      cloudinaryFormData.append('api_key', apiKey)
-      cloudinaryFormData.append('timestamp', String(timestamp))
-      cloudinaryFormData.append('signature', signature)
-      cloudinaryFormData.append('folder', 'campusconnect/notes')
-
-      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`)
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setUploadProgress(Math.round((e.loaded / e.total) * 100))
-          }
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setUploadProgress(Math.round((e.loaded / e.total) * 100))
         }
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolve(JSON.parse(xhr.responseText))
-            } catch {
-              reject(new Error('Invalid response from upload server.'))
-            }
-          } else {
-            reject(new Error('Upload server returned status: ' + xhr.status))
-          }
-        }
-
-        xhr.onerror = () => reject(new Error('Direct upload failed.'))
-        xhr.send(cloudinaryFormData)
-      })
-
-      // 3. Send ONLY metadata as JSON to /api/upload/notes
-      console.log('Sending metadata:', {
-        title: title.trim(),
-        description: description.trim(),
-        semester: uploadSemester,
-        tags: '',
-        file_url: uploadResult.secure_url,
-        file_type: fileExtension,
-      })
-
-      const response = await fetch('/api/upload/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          semester: uploadSemester,
-          tags: '',
-          file_url: uploadResult.secure_url,
-          file_type: fileExtension,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        setError(data.error || 'Upload failed. Try again.')
-        setUploading(false)
-        return
       }
 
-      // Upload successful
-      onSuccess()
-      
-      // Reset form
-      setTitle('')
-      setDescription('')
-      setUploadSemester('')
-      setSelectedFile(null)
-      setUploadProgress(0)
-      
-      onClose()
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Success
+          onSuccess()
+          // Reset form
+          setTitle('')
+          setDescription('')
+          setUploadSemester('')
+          setSelectedFile(null)
+          setUploadProgress(0)
+          onClose()
+        } else {
+          try {
+            const errData = JSON.parse(xhr.responseText)
+            setError(errData.error || 'Upload failed')
+          } catch {
+            setError('Upload failed')
+          }
+          setUploading(false)
+        }
+      }
+
+      xhr.onerror = () => {
+        setError('Upload failed')
+        setUploading(false)
+      }
+
+      xhr.send(formData)
     } catch (err: unknown) {
       console.error('Upload error:', err)
       setError(err instanceof Error ? err.message : 'Something went wrong.')

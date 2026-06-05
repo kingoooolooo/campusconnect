@@ -133,9 +133,36 @@ export function ChatMessages({ chatType, departmentId, semester, currentUserId, 
           .eq('id', msg.sender_id)
           .single()
 
+        // Fetch reply_to content if this is a reply
+        let replyToContent = msg.reply_to_content || null
+        let replyToSender = msg.reply_to_sender || null
+
+        if (msg.reply_to_id && !replyToContent) {
+          const { data: replyMsg } = await supabase
+            .from('messages')
+            .select('content, sender_id')
+            .eq('id', msg.reply_to_id)
+            .single()
+
+          if (replyMsg) {
+            replyToContent = replyMsg.content
+
+            const { data: replyProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', replyMsg.sender_id)
+              .single()
+
+            replyToSender = replyProfile?.full_name || 'Unknown'
+          }
+        }
+
         const enrichedMsg = {
           ...msg,
           profiles: profile,  // MUST be 'profiles' not 'profile'
+          reply_to_id: msg.reply_to_id,
+          reply_to_content: replyToContent,
+          reply_to_sender: replyToSender,
         }
 
         setMessages(prev => [...prev, enrichedMsg])

@@ -180,16 +180,33 @@ export function NotePreviewModal({ note, onClose, onDownload }: NotePreviewModal
 
         {/* PDF preview */}
         {isPdf && (
-          <iframe
-            src={note.file_url}
-            title={note.title}
-            style={{
-              width: '90vw',
-              height: '85vh',
-              border: 'none',
-              background: '#FFFFFF',
-            }}
-          />
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(note.file_url)}&embedded=true`}
+              style={{ width: '100%', height: '70vh', border: 'none', background: '#fff' }}
+              title="PDF Preview"
+            />
+            <div style={{ marginTop: '16px' }}>
+              <a
+                href={`/api/download/${note.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                style={{
+                  display: 'inline-block',
+                  padding: '12px 24px',
+                  background: '#607C8E',
+                  color: '#fff',
+                  fontFamily: "'Fragment Mono', monospace",
+                  fontSize: '12px',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Download PDF
+              </a>
+            </div>
+          </div>
         )}
 
         {/* Other files — download prompt */}
